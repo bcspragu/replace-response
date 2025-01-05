@@ -89,7 +89,8 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			}
 
 			repl.Search = d.Val()
-			if !d.NextArg() {
+			n := d.CountRemainingArgs()
+			if n < 1 {
 				return d.ArgErr()
 			}
 			repl.Replaces = d.RemainingArgs()

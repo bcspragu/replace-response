@@ -34,8 +34,17 @@ import (
 	"golang.org/x/text/transform"
 )
 
+var randReplace *rand.Rand
+
 func init() {
 	caddy.RegisterModule(Handler{})
+	// Generated from random.org, because why not
+	var seed2 uint64 = 0x845a6f90b949a040
+
+	// We probably lose a bit of entropy on the int64 -> uint64, but this shouldn't
+	// be used for cryptographically sensitive purposes anyway, for many reasons, so
+	// please don't.
+	randReplace = rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), seed2))
 }
 
 // Handler manipulates response bodies by performing
@@ -92,19 +101,12 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 
 	placeholderRepl := caddy.NewReplacer()
 
-	// Generated from random.org, because why not
-	var seed2 uint64 = 0x845a6f90b949a040
-
-	// We probably lose a bit of entropy on the int64 -> uint64, but this shouldn't
-	// be used for cryptographically sensitive purposes anyway, for many reasons, so
-	// please don't.
-	r := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), seed2))
 
 	h.transformerPool = &sync.Pool{
 		New: func() interface{} {
 			transforms := make([]transform.Transformer, len(h.Replacements))
 			for i, repl := range h.Replacements {
-				finalReplace := placeholderRepl.ReplaceKnown(repl.Replaces[r.IntN(len(repl.Replaces))], "")
+				finalReplace := placeholderRepl.ReplaceKnown(repl.Replaces[randReplace.IntN(len(repl.Replaces))], "")
 
 				if repl.re != nil {
 					tr := replace.RegexpIndexFunc(repl.re, func(src []byte, index []int) []byte {
