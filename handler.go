@@ -20,10 +20,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"regexp"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -90,11 +92,19 @@ func (h *Handler) Provision(ctx caddy.Context) error {
 
 	placeholderRepl := caddy.NewReplacer()
 
+	// Generated from random.org, because why not
+	var seed2 uint64 = 0x845a6f90b949a040
+
+	// We probably lose a bit of entropy on the int64 -> uint64, but this shouldn't
+	// be used for cryptographically sensitive purposes anyway, for many reasons, so
+	// please don't.
+	r := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), seed2))
+
 	h.transformerPool = &sync.Pool{
 		New: func() interface{} {
 			transforms := make([]transform.Transformer, len(h.Replacements))
 			for i, repl := range h.Replacements {
-				finalReplace := placeholderRepl.ReplaceKnown(repl.Replace, "")
+				finalReplace := placeholderRepl.ReplaceKnown(repl.Replaces[r.IntN(len(repl.Replaces))], "")
 
 				if repl.re != nil {
 					tr := replace.RegexpIndexFunc(repl.re, func(src []byte, index []int) []byte {
@@ -125,7 +135,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyht
 
 	repl := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
 	h.repl = repl
-	
+
 	tr := h.transformerPool.Get().(transform.Transformer)
 	tr.Reset()
 	defer h.transformerPool.Put(tr)
@@ -201,8 +211,8 @@ type Replacement struct {
 	// A regular expression to search for. Mutually exclusive with search.
 	SearchRegexp string `json:"search_regexp,omitempty"`
 
-	// The replacement string/value. Required.
-	Replace string `json:"replace"`
+	// The replacement strings/values. Required.
+	Replaces []string `json:"replace"`
 
 	re *regexp.Regexp
 }

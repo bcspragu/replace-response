@@ -1,6 +1,10 @@
 Caddy `replace_response` handler module
 =======================================
 
+This fork just adds the ability to add multiple possible replacement strings, one of which will be chosen at random. This is for a dumb joke (changing out the title of my blog on each page load) and avoiding writing two lines of JavaScript
+
+---
+
 This Caddy module performs substring and regular expression replacements on response bodies, hence the name `replace_response`.
 
 By default, this module operates in "buffer" mode. This is not very memory-efficient, but it guarantees we can always set the correct Content-Length header because we can buffer the output to know the resulting length before writing the response. If you need higher efficiency, you can enable "streaming" mode. When performing replacements on a stream, the Content-Length header may be removed because it is not always possible to know the correct value, since the results are streamed directly to the client and headers must be written before the body.

@@ -60,9 +60,19 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			return nil
 
 		case "re":
-			if !d.AllArgs(&repl.SearchRegexp, &repl.Replace) {
+			if !d.Args(&repl.SearchRegexp) {
 				return d.ArgErr()
 			}
+			n := d.CountRemainingArgs()
+			replaces := make([]string, n)
+			replacesPtrs := make([]*string, n)
+			for i := 0; i < n; i++ {
+				replacesPtrs[i] = &replaces[i]
+			}
+			if !d.AllArgs(replacesPtrs...) {
+				return d.ArgErr()
+			}
+			repl.Replaces = replaces
 		default:
 			if isBlock && d.Val() == "match" {
 				if h.Matcher != nil {
@@ -82,10 +92,7 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 			if !d.NextArg() {
 				return d.ArgErr()
 			}
-			repl.Replace = d.Val()
-			if d.NextArg() {
-				return d.ArgErr()
-			}
+			repl.Replaces = d.RemainingArgs()
 		}
 
 		h.Replacements = append(h.Replacements, &repl)
